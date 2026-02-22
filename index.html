@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>KGN - Consolidador</title>
+<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #121212;
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.container {
+    background-color: #1e1e1e;
+    padding: 40px;
+    border-radius: 12px;
+    width: 420px;
+    box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+    text-align: center;
+}
+
+h1 {
+    margin-bottom: 25px;
+    font-size: 24px;
+    letter-spacing: 1px;
+}
+
+input[type="file"] {
+    margin: 15px 0;
+    color: #ccc;
+}
+
+button {
+    background-color: #4CAF50;
+    border: none;
+    padding: 12px 20px;
+    color: white;
+    font-size: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+.footer {
+    margin-top: 20px;
+    font-size: 12px;
+    color: #777;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>KGN - Consolidador</h1>
+    <p>Selecciona varios PDFs para unir sus primeras páginas</p>
+
+    <input type="file" id="pdfInput" multiple accept="application/pdf">
+    <br>
+    <button onclick="procesar()">Generar PDF Consolidado</button>
+
+    <div class="footer">
+        Procesamiento local · No se suben archivos
+    </div>
+</div>
+
+<script>
+async function procesar() {
+    const { PDFDocument } = PDFLib;
+    const input = document.getElementById('pdfInput');
+    const files = input.files;
+
+    if (!files.length) {
+        alert("Selecciona al menos un PDF");
+        return;
+    }
+
+    const nombreSalida = prompt("Nombre del archivo de salida:", "consolidado.pdf");
+    if (!nombreSalida) return;
+
+    const pdfFinal = await PDFDocument.create();
+
+    for (let file of files) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await PDFDocument.load(arrayBuffer);
+
+        if (pdf.getPageCount() > 0) {
+            const [pagina] = await pdfFinal.copyPages(pdf, [0]);
+            pdfFinal.addPage(pagina);
+        }
+    }
+
+    const pdfBytes = await pdfFinal.save();
+    const blob = new Blob([pdfBytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nombreSalida.endsWith(".pdf") ? nombreSalida : nombreSalida + ".pdf";
+    a.click();
+
+    URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>
