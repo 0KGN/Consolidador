@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>KGN - Consolidador</title>
+
+<!-- PDF-LIB -->
 <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+
+<!-- JSZIP -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <style>
 body {
@@ -64,11 +69,11 @@ button:hover {
 
 <div class="container">
     <h1>KGN - Consolidador</h1>
-    <p>Selecciona varios PDFs para unir sus primeras páginas</p>
+    <p>Selecciona varios PDFs para extraer su primera página</p>
 
     <input type="file" id="pdfInput" multiple accept="application/pdf">
     <br>
-    <button onclick="procesar()">Generar PDF Consolidado</button>
+    <button onclick="procesar()">Generar ZIP con primeras páginas</button>
 
     <div class="footer">
         Procesamiento local · No se suben archivos
@@ -86,29 +91,40 @@ async function procesar() {
         return;
     }
 
-    const nombreSalida = prompt("Nombre del archivo de salida:", "consolidado.pdf");
-    if (!nombreSalida) return;
+    const nombreZip = prompt("Nombre del archivo ZIP:", "primeras_paginas.zip");
+    if (!nombreZip) return;
 
-    const pdfFinal = await PDFDocument.create();
+    const zip = new JSZip();
 
     for (let file of files) {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await PDFDocument.load(arrayBuffer);
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await PDFDocument.load(arrayBuffer);
 
-        if (pdf.getPageCount() > 0) {
-            const [pagina] = await pdfFinal.copyPages(pdf, [0]);
-            pdfFinal.addPage(pagina);
+            if (pdf.getPageCount() > 0) {
+                const nuevoPDF = await PDFDocument.create();
+                const [pagina] = await nuevoPDF.copyPages(pdf, [0]);
+                nuevoPDF.addPage(pagina);
+
+                const pdfBytes = await nuevoPDF.save();
+
+                const nombreBase = file.name.replace(/\.pdf$/i, "");
+                zip.file(nombreBase + "_pagina1.pdf", pdfBytes);
+            }
+        } catch (error) {
+            console.error("Error procesando:", file.name, error);
         }
     }
 
-    const pdfBytes = await pdfFinal.save();
-    const blob = new Blob([pdfBytes], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(zipBlob);
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = nombreSalida.endsWith(".pdf") ? nombreSalida : nombreSalida + ".pdf";
+    a.download = nombreZip.endsWith(".zip") ? nombreZip : nombreZip + ".zip";
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
 
     URL.revokeObjectURL(url);
 }
